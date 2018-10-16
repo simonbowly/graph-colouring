@@ -1,0 +1,21 @@
+
+Scripts developed under python 3.7 (3.6 should also be fine).
+
+Environment setup:
+
+    provision.py - Run this script to download and compile (requires make and gcc) colouring algorithm source and download evolved graph instances.
+    requirements.txt - Run "pip install -r requirements.txt" to load necessary python libraries for feature calculation.
+
+Scripts:
+
+    evaluate.py - Runs feature calculation and colouring heuristics on the evolved graph instance set.
+    instance_space.py - Produce figures showing the projected instance space for this data set.
+
+Data sets:
+
+    evolved-instances-results.json - Stored output of evaluate.py (takes a while to recalculate for the full data set).
+
+Library files:
+
+    algorithms.py - Contains functions to run Culberson algorithms.
+    features.py - Contains functions for feature calculation.
