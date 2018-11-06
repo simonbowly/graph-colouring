@@ -70,7 +70,7 @@ def graph_features(n_vertices, edges):
         'edges': int(n_edges),
         'density': float(2 * n_edges / (n_vertices * (n_vertices - 1))),
         # Sum of magnitudes of eigenvalues of the adjacency matrix.
-        'energy': float(np.abs(np.linalg.eigvals(adj.todense())).sum()),
+        'energy': float(np.abs(np.linalg.eigvals(adj.todense())).mean()),
         # Second smallest eigenvalue of the laplacian matrix.
         'algebraic_connectivity': float(np.sort(np.abs(np.linalg.eigvals(laplacian.todense())))[1]),
     }
@@ -78,4 +78,5 @@ def graph_features(n_vertices, edges):
 
 if __name__ == '__main__':
     # Run a simple test when this file is run as a script.
-    print(graph_features(**read_dimacs('test_case.col')))
+    from pprint import pprint
+    pprint(graph_features(**read_dimacs('test_case.col')))

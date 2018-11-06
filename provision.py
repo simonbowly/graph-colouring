@@ -10,6 +10,7 @@ Instances should end up in graphs/instances/ to be found by evaluate.py
 
 import contextlib
 import os
+import pathlib
 import subprocess
 import tarfile
 import urllib.request
@@ -31,3 +32,14 @@ urllib.request.urlretrieve(
     'graphs.zip')
 with contextlib.closing(zipfile.ZipFile('graphs.zip')) as archive:
     archive.extractall()
+
+print('Downloading and building Lewis graph algorithms...')
+urllib.request.urlretrieve(
+    'http://www.rhydlewis.eu/resources/gCol.zip',
+    'gCol.zip')
+with contextlib.closing(zipfile.ZipFile('gCol.zip')) as archive:
+    archive.extractall()
+os.rename('gCol', 'lewis')
+makefile = pathlib.Path('lewis/Makefile')
+makefile.write_text(makefile.read_text().replace('IteratedGreedy ', ''))
+subprocess.check_call(['make', 'all'], cwd='lewis')
