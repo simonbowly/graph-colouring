@@ -6,7 +6,7 @@
 ######################## USER CONF ############################
 
 # Define the objects to build (algorithm.cpp -> obj/algorithm.o)
-modules = graph generators
+modules = graph
 # Standard compiler flags.
 cppflags = -O3 -Wall -Wextra -pedantic -fPIC --std=c++17
 # Additional for the benchmark and release builds.
@@ -42,7 +42,7 @@ test: bin/test
 
 # Memory access error and leak checking
 memtest: bin/test
-	valgrind bin/test
+	valgrind --leak-check=full bin/test
 
 # Object files.
 obj/%.o: %.cpp
@@ -54,4 +54,4 @@ obj/%.opt.o: %.cpp
 # Header deps.
 obj/graph.o: graph.hpp utils.hpp
 obj/graph.opt.o: graph.hpp utils.hpp
-obj/test.o: graph.hpp utils.hpp generators.hpp
+obj/test.o: graph.hpp utils.hpp

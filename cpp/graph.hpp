@@ -2,8 +2,10 @@
 #ifndef GRAPH_HPP
 #define GRAPH_HPP
 
+
 #include <memory>
 #include <random>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -54,6 +56,7 @@ namespace graph {
      public:
 
         UndirectedGraph() { graph = impl::create_igraph_empty(0); }
+        UndirectedGraph(impl::igraph_ptr& g) { graph = move(g); }
         explicit UndirectedGraph(int n) { graph = impl::create_igraph_empty(n); }
         UndirectedGraph(const UndirectedGraph& a) { impl::create_igraph_copy(a.graph); }
         UndirectedGraph(UndirectedGraph&& a) noexcept { graph = move(a.graph); }
@@ -93,7 +96,18 @@ namespace graph {
         int radius() const;
         int girth() const;
         double clustering_coefficient() const;
-        double algebraic_connectivity() const;
+
+        double algebraic_connectivity_arpack_dense() const;
+        double algebraic_connectivity_lapack_dense() const;
+
+        double wiener_index() const;
+        std::pair<double, double> szeged_indices() const;
+
+        bool is_connected() const {
+            igraph_bool_t res;
+            igraph_is_connected(graph.get(), &res, IGRAPH_STRONG);
+            return res;
+        }
 
         // Degree sequence and stats.
         IGraphVector degree() const;
@@ -115,14 +129,7 @@ namespace graph {
 
         // Spectrum (eigenvalues of the adjacency matrix).
         IGraphVector adjacency_eigenvalues() const;
-        std::pair<double, double> adjacency_eigenvalues_statistics() const {
-            return simple_statistics(adjacency_eigenvalues());
-        }
-
-        std::vector<double> abs_adjacency_eigenvalues() const;
-        std::pair<double, double> abs_adjacency_eigenvalues_statistics() const {
-            return simple_statistics(abs_adjacency_eigenvalues());
-        }
+        std::tuple<double, double, double> adjacency_eigenvalue_stats() const;
 
         // Vector properties.
         IGraphVSIterator neighbours(int v) const;
@@ -131,6 +138,11 @@ namespace graph {
 
     };
 
+    UndirectedGraph read_dimacs(std::string);
+    UndirectedGraph random_tree(int vertices, int children);
+    UndirectedGraph random_bipartite(int n1, int n2, double p);
+    UndirectedGraph erdos_renyi_gnm(int n, int m);
+    UndirectedGraph erdos_renyi_gnp(int n, double p);
 
 }
 

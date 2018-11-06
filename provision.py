@@ -33,6 +33,11 @@ urllib.request.urlretrieve(
 with contextlib.closing(zipfile.ZipFile('graphs.zip')) as archive:
     archive.extractall()
 
+print('Removing some badly specified instances...')
+for ind in [3662] + [6029 + i for i in range(10)] + [6139 + i for i in range(4)]:
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(f'graphs/instances/g{ind:04d}.col')
+
 print('Downloading and building Lewis graph algorithms...')
 urllib.request.urlretrieve(
     'http://www.rhydlewis.eu/resources/gCol.zip',
