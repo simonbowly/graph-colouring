@@ -218,9 +218,9 @@ if __name__ == '__main__':
                 ant_colony, hill_climber, hybrid_ea, partial_col, tabu_col,
                 backtracking_dsatur, simple_greedy, dsatur]}
 
-    instance_files = sorted(pathlib.Path('graphs/instances').glob('g000*.col'))
+    instance_files = sorted(pathlib.Path('graphs/instances').glob('g*.col'))
     pool = multiprocessing.Pool()
-    results = list(tqdm.tqdm(pool.imap_unordered(evaluate, instance_files)))
+    results = list(tqdm.tqdm(pool.imap_unordered(evaluate, instance_files), total=len(instance_files)))
 
     print(f'Writing {len(results)} results.')
     with open('lewis-evolved-results.json', 'w') as outfile:

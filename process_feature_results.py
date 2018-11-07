@@ -50,4 +50,5 @@ results[[
     'E Centrality Mean': 'Eigenvector Centrality Mean',
     'E Centrality StDev': 'Eigenvector Centrality StDev',
     'Clustering Coeff': 'Clustering Coefficient',
+    'Beta': 'Beta Bipartitivity',
 }).to_excel('evolved-features.xlsx')
