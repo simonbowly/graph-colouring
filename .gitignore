@@ -120,4 +120,4 @@ cpp/obj
 # Results
 lewis-evolved-results.json
 evolved-features.out
-evolved-features.xlsx
+*.xlsx
