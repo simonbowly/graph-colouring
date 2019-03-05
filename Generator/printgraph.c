@@ -29,7 +29,6 @@
 #include <time.h>
 
 extern char *strcat();
-extern int fprintf(); 
 FILE *fopen();
 time_t time();
 

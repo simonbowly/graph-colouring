@@ -197,7 +197,7 @@ Please enter girth limit g: ");
 
 void randchoice(long *which)
 {
-	printf("\n\t\t***********\n\"
+	printf("\n\t\t***********\n\
    Due to the interactions of the inhibitors and generators for edges,\n\
 the order in which edges are assigned WILL influence the characteristics\n\
 of the graph generated. To randomize the result, an attempt will be made\n\

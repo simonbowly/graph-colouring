@@ -32,3 +32,12 @@ Note the last deceptive coloring may be partial.
 The hidden and deceptive colorings are printed in file.dcp where the graph is
 in file.
 
+===== Changes on 2019-03-05 (Simon Bowly) =====
+
+Original code obtained from:
+http://webdocs.cs.ualberta.ca/~joe/Coloring/Generators/generate.html (instructions)
+http://webdocs.cs.ualberta.ca/~joe/Coloring/Generators/newgen.tar (code archive)
+
+Minor changes made to extern declarations in header files for compatability with
+newer gcc versions.
+Fixed a bad termination of a multiline string.

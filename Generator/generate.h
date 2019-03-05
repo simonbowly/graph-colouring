@@ -156,7 +156,10 @@ void weighted_graph(graphtype graph, graphtype blocker,
 
 
 /* library functions */
-extern int printf(),scanf(),fprintf();
+extern int printf(const char *__restrict __format, ...);
+extern int scanf(const char *__restrict __format, ...);
+extern int fprintf (FILE *__restrict __stream,
+                    const char *__restrict __format, ...);
 extern void exit();
 
 extern double drand48();
