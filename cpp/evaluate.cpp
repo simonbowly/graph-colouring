@@ -29,26 +29,24 @@ void print_features(const UndirectedGraph& g) {
     cout << "14. Energy:                " << energy << endl;
     cout << "15. Eigenvalue StDev:      " << eig_stdev << endl;
     cout << "16. Alg. Connectivity:     " << algebraic_connectivity_lapack_dense(g) << endl;
-    cout << "    Alg. Connectivity:     " << algebraic_connectivity_arpack_dense(g) << endl;
     tie( mean, stdev ) = simple_statistics(eigenvector_centrality(g));
     cout << "17. E Centrality Mean:     " << mean << endl;
     cout << "18. E Centrality StDev:    " << stdev << endl;
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
 
-    cout << "========= TREE ========" << endl;
-    auto g = random_tree(100, 10);
-    print_features(g);
-
-    cout << "====== BIPARTITE ======" << endl;
-    g = random_bipartite(20, 30, 0.3);
-    print_features(g);
-
-    cout << "===== ERDOS-RENYI =====" << endl;
-    g = erdos_renyi_gnp(10, 0.9);
-    print_features(g);
+    for (int i = 1; i < argc; i++) {
+        string instance_file(argv[i]);
+        try {
+            const UndirectedGraph g = read_dimacs(instance_file);
+            cout << "===== " << instance_file << " =====" << endl;
+            print_features(g);
+        } catch (...) {
+            cerr << "Skipped " << instance_file << " due to error" << endl;
+        }
+    }
 
     return 0;
 

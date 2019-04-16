@@ -10,86 +10,72 @@
 
 namespace graph {
 
+    class igraphVector {
 
-    class IGraphVector {
-
-        bool initialised;
         igraph_vector_t v;
         gsl::span<const igraph_real_t> vec_span;   // possible to just inherit from this?
 
-    public:
+     public:
 
-        IGraphVector() : initialised(false) {}
-
-        IGraphVector(igraph_vector_t _v) : initialised(true), v(_v) {
+        // Allocate vector size.
+        igraphVector(uint n) {
+            igraph_vector_init(&v, n);
             vec_span = gsl::span<const igraph_real_t>{VECTOR(v), igraph_vector_size(&v)};
         }
 
-        ~IGraphVector() {
-            if (initialised) {
+        // Clean up the igraph memory allocation.
+        ~igraphVector() {
                 igraph_vector_destroy(&v);
-            }
         }
 
-        IGraphVector(const IGraphVector&) = delete;
-        IGraphVector& operator=(const IGraphVector&) = delete;
+        // No copy operations or move assignments allowed.
+        igraphVector(const igraphVector&) = delete;
+        igraphVector& operator=(const igraphVector&) = delete;
+        igraphVector& operator=(igraphVector&& a) = delete;
 
-        IGraphVector(IGraphVector&& a) {
-            initialised = a.initialised;        a.initialised = false;
+        // Move constructor assigns the igraph_vector_t pointer.
+        igraphVector(igraphVector&& a) {
             v = a.v;                            a.v = igraph_vector_t();
             vec_span = a.vec_span;              a.vec_span = gsl::span<const igraph_real_t>{};
         }
 
-        IGraphVector& operator=(IGraphVector&& a) = delete;
+        // Update the span object in case the underlying memory may have changed.
+        // This should be called after any igraph function which might resize the vector.
+        void update() {
+            vec_span = gsl::span<const igraph_real_t>{VECTOR(v), igraph_vector_size(&v)};
+        }
 
+        // Span accessors.
         int size() const { return vec_span.size(); }
         gsl::span<const igraph_real_t>::iterator begin() const { return vec_span.begin(); }
         gsl::span<const igraph_real_t>::iterator end() const { return vec_span.end(); }
         const igraph_real_t& operator[](int i) const { return vec_span[i]; }
 
-        const igraph_vector_t* get_ptr() const { return &v; }
+        // Return pointer to igraph_vector_t to pass to igraph modifier functions.
+        igraph_vector_t* get() { return &v; }
 
     };
 
+    class igraphMatrix {
 
-    class IGraphVSIterator {
+        igraph_matrix_t m;
 
-        bool initialised;
-        igraph_vs_t vs;
-        igraph_vit_t vit;
-        gsl::span<const igraph_real_t> vit_span;
+     public:
 
-    public:
+        igraphMatrix(uint rows, uint cols) {  igraph_matrix_init(&m, rows, cols);  }
+        ~igraphMatrix() {  igraph_matrix_destroy(&m);  }
 
-        IGraphVSIterator() : initialised(false) {}
+        // No copy or move allowed.
+        igraphMatrix(const igraphMatrix&) = delete;
+        igraphMatrix& operator=(const igraphMatrix&) = delete;
+        igraphMatrix(igraphMatrix&&) = delete;
+        igraphMatrix& operator=(igraphMatrix&& a) = delete;
 
-        IGraphVSIterator(igraph_vs_t _vs, igraph_vit_t _vit) : initialised(true), vs(_vs), vit(_vit) {
-            vit_span = gsl::span<const igraph_real_t>{VECTOR(*(vit).vec), vit.end - vit.start};
-        }
+        // Element access.
+        igraph_real_t element(int i, int j) const { return MATRIX(m, i, j); }
 
-        ~IGraphVSIterator() {
-            if (initialised) {
-                igraph_vit_destroy(&vit);
-                igraph_vs_destroy(&vs);
-            }
-        }
-
-        IGraphVSIterator(const IGraphVSIterator&) = delete;
-        IGraphVSIterator& operator=(const IGraphVSIterator&) = delete;
-
-        IGraphVSIterator(IGraphVSIterator&& a) {
-            initialised = a.initialised;    a.initialised = false;
-            vs = a.vs;                      a.vs = igraph_vs_t();
-            vit = a.vit;                    a.vit = igraph_vit_t();
-            vit_span = a.vit_span;          a.vit_span = gsl::span<const igraph_real_t>{};
-        }
-
-        IGraphVSIterator& operator=(IGraphVSIterator&& a) = delete;
-
-        int size() const { return vit_span.size(); }
-        gsl::span<const igraph_real_t>::iterator begin() const { return vit_span.begin(); }
-        gsl::span<const igraph_real_t>::iterator end() const { return vit_span.end(); }
-        const igraph_real_t& operator[](int i) const { return vit_span[i]; }
+        // Return igraph_matrix_t pointer to pass to igraph modifier functions.
+        igraph_matrix_t* get() { return &m; }
 
     };
 

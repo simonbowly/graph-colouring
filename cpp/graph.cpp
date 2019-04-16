@@ -3,111 +3,119 @@
 #include <fstream>
 #include <gsl/gsl_assert>
 #include "graph.hpp"
-#include <iostream>
+
 
 using namespace std;
-using namespace graph;
+
+
+namespace graph {
 
 
 void UndirectedGraph::add_edges(vector<pair<int, int>> edges)
 {
-    igraph_vector_t v;
-    igraph_vector_init(&v, edges.size() * 2);
+    igraphVector v(edges.size() * 2);
     int i = 0;
     for (auto edge : edges) {
-        VECTOR(v)[i] = edge.first;
-        VECTOR(v)[i+1] = edge.second;
+        VECTOR(*v.get())[i] = edge.first;
+        VECTOR(*v.get())[i+1] = edge.second;
         i += 2;
     }
-    igraph_add_edges(graph.get(), &v, 0);
-    igraph_vector_destroy(&v);
+    igraph_add_edges(graph.get(), v.get(), 0);
 }
 
-IGraphVector UndirectedGraph::degree() const {
-    igraph_vector_t v;
-    igraph_vector_init(&v, vertices());
-    /*int ret = */igraph_degree(graph.get(), &v, igraph_vss_all(), IGRAPH_ALL, IGRAPH_NO_LOOPS);
-    auto res = IGraphVector(v);
-    Ensures(res.size() == vertices());
+
+double density(const UndirectedGraph& graph) {
+    double v = graph.vertices();
+    double e = graph.edges();
+    return 2 * e / (v * (v - 1));
+}
+
+
+bool is_connected(const UndirectedGraph& graph) {
+    igraph_bool_t res;
+    igraph_is_connected(graph.get(), &res, IGRAPH_STRONG);
     return res;
 }
 
-IGraphVector UndirectedGraph::betweenness_centrality() const {
-    igraph_vector_t v;
-    igraph_vector_init(&v, vertices());
+
+const igraphVector degree(const UndirectedGraph& graph) {
+    igraphVector res(graph.vertices());
+    /*int ret = */igraph_degree(graph.get(), res.get(), igraph_vss_all(), IGRAPH_ALL, IGRAPH_NO_LOOPS);
+    res.update();
+    Ensures(res.size() == graph.vertices());
+    return res;
+}
+
+const igraphVector betweenness_centrality(const UndirectedGraph& graph) {
+    igraphVector res(graph.vertices());
     /*int ret = */igraph_betweenness(
-        graph.get(), &v,
+        graph.get(), res.get(),
         igraph_vss_all(),
         false,          // false = undirected
         nullptr,        // NULL = unweighted
         true);          // nobigint = true
-    auto res = IGraphVector(v);
-    Ensures(res.size() == vertices());
+    res.update();
+    Ensures(res.size() == graph.vertices());
     return res;
 }
 
-IGraphVector UndirectedGraph::eigenvector_centrality() const {
-    igraph_vector_t v;
-    igraph_vector_init(&v, vertices());
+const igraphVector eigenvector_centrality(const UndirectedGraph& graph) {
+    igraphVector res(graph.vertices());
     igraph_arpack_options_t options;
     igraph_arpack_options_init(&options);
     /*int ret = */igraph_eigenvector_centrality(
-        graph.get(), &v,
+        graph.get(), res.get(),
 		nullptr,        // eigenvalue (not needed)
         false,          // false = undirected
         false,          // false = do not scale
         nullptr,        // nul = unweighted
         &options);
-    auto res = IGraphVector(v);
-    Ensures(res.size() == vertices());
+    res.update();
+    Ensures(res.size() == graph.vertices());
     return res;
 }
 
-IGraphVector UndirectedGraph::adjacency_eigenvalues() const {
+
+const igraphVector adjacency_eigenvalues(const UndirectedGraph& graph) {
     // Get adjacency matrix.
-    igraph_matrix_t adjacency;
-    igraph_matrix_init(&adjacency, vertices(), vertices());
+    igraphMatrix adjacency(graph.vertices(), graph.vertices());
     /*int ret = */igraph_get_adjacency(
-        graph.get(), &adjacency,
+        graph.get(), adjacency.get(),
         IGRAPH_GET_ADJACENCY_BOTH,  // upper and lower triangular
         false);                     // false = number of edges
 
     // Calculate all eigenvalues.
-    igraph_vector_t v;
-    igraph_vector_init(&v, vertices());
+    igraphVector res(graph.vertices());
     /*int ret = */igraph_lapack_dsyevr(
-        &adjacency,
+        adjacency.get(),
 		IGRAPH_LAPACK_DSYEV_ALL,
 		0.0, 0.0, 0.0,      // bounds for eigenvalues (only for INTERVAL mode)
 		0, 0,               // lower and upper indexing (only for SELECT mode)
         1e-10,              // convergence tolerance
-		&v,                 // resulting eigenvalues
+		res.get(),          // resulting eigenvalues
         nullptr,            // eigenvectors are discarded
 		nullptr);           // support is discarded
+    res.update();
 
-    // Cleanup.
-    igraph_matrix_destroy(&adjacency);
-
-    auto res = IGraphVector(v);
-    Ensures(res.size() == vertices());
+    Ensures(res.size() == graph.vertices());
     return res;
 }
 
 
-tuple<double, double, double> UndirectedGraph::adjacency_eigenvalue_stats() const {
+const tuple<double, double, double> adjacency_eigenvalue_stats(const UndirectedGraph& graph) {
     // Returns:
     //      energy (mean of absolute values of eigenvalues)
     //      (absolute) eigenvalue standard deviation
     //      beta bipartitivity parameter (even closed walks/all closed walks)
 
     // Calculate eigenvalues and absolutes.
-    auto eigenvalues = adjacency_eigenvalues();
+    const igraphVector eigenvalues = adjacency_eigenvalues(graph);
     vector<double> absolute_eigenvalues;
-    absolute_eigenvalues.reserve(vertices());
-    for (const auto & v : adjacency_eigenvalues()) {
+    absolute_eigenvalues.reserve(graph.vertices());
+    for (const auto & v : eigenvalues) {
         absolute_eigenvalues.push_back(fabs(v));
     }
-    Ensures(absolute_eigenvalues.size() == (uint) vertices());
+    Ensures(absolute_eigenvalues.size() == (uint) graph.vertices());
 
     // Mean/stdev statistics.
     auto [energy, stdev] = simple_statistics(absolute_eigenvalues);
@@ -115,7 +123,7 @@ tuple<double, double, double> UndirectedGraph::adjacency_eigenvalue_stats() cons
     // Beta bipartitivity.
     double sc_even = 0.0;
     double sc_total = 0.0;
-    for (const double& eig : adjacency_eigenvalues()) {
+    for (const double& eig : eigenvalues) {
         sc_even += cosh(eig);
         sc_total += exp(eig);
     }
@@ -124,73 +132,64 @@ tuple<double, double, double> UndirectedGraph::adjacency_eigenvalue_stats() cons
 }
 
 
-double UndirectedGraph::algebraic_connectivity_lapack_dense() const {
+double algebraic_connectivity_lapack_dense(const UndirectedGraph& graph) {
     
     // Short-circuit.
-    if (!is_connected()) { return 0; }
+    if (!is_connected(graph)) { return 0; }
 
     // Get laplacian matrix.
-    igraph_matrix_t laplacian;
-    igraph_matrix_init(&laplacian, vertices(), vertices());
+    igraphMatrix laplacian(graph.vertices(), graph.vertices());
     /*int ret = */igraph_laplacian(
-        graph.get(), &laplacian,
+        graph.get(), laplacian.get(),
         nullptr,                    // don't create sparse laplacian
         false,                      // false = non-normalised
         nullptr);                   // null = unweighted
 
-    // Calculate second smallest eigenvalue.
-    igraph_vector_t v;
-    // Must allocate N-length workspace to avoid memory issues.
+    // Must allocate N-length workspace to avoid memory issues. igraph will resize.
     //      ref https://github.com/igraph/igraph/issues/1109
-    igraph_vector_init(&v, vertices());
+    igraphVector result(graph.vertices());
     /*int ret = */igraph_lapack_dsyevr(
-        &laplacian,
+        laplacian.get(),
 		IGRAPH_LAPACK_DSYEV_SELECT,
 		0.0, 0.0, 0.0,      // bounds for eigenvalues (only for INTERVAL)
-		2, 2,               // select second smallest
+		2, 2,               // select second smallest eigenvalue only
         1e-10,              // convergence tolerance
-		&v,                 // resulting eigenvalues
+		result.get(),       // resulting eigenvalues
         nullptr,            // eigenvectors are discarded
 		nullptr);           // support is discarded
-
-    // Cleanup.
-    igraph_matrix_destroy(&laplacian);
+    result.update();
 
     // Resulting vector has size 1, so begin() points to the result.
-    auto result = IGraphVector(v);
     Ensures(result.size() == 1);
     return *result.begin();
 }
 
 int multiplier(igraph_real_t *to, const igraph_real_t *from, int n, void *extra) {
 
-    igraph_matrix_t* A = (igraph_matrix_t*) extra;
-    igraph_vector_t row;
-    igraph_vector_init(&row, n);
+    const igraph_matrix_t* A = (igraph_matrix_t*) extra;
 
+    igraphVector row(n);
     for (int i = 0; i < n; i++) {
-        igraph_matrix_get_row(A, &row, i);
+        igraph_matrix_get_row(A, row.get(), i);
+        row.update();
         to[i] = 0.0;
         for (int j = 0; j < n; j++) {
-            to[i] += VECTOR(row)[j] * from[j];
+            to[i] += row[j] * from[j];
         }
     }
-
-    igraph_vector_destroy(&row);
 
     return 0;
 }
 
-double UndirectedGraph::algebraic_connectivity_arpack_dense() const {
+double algebraic_connectivity_arpack_dense(const UndirectedGraph& graph) {
 
     // Short-circuit.
-    if (!is_connected()) { return 0; }
+    if (!is_connected(graph)) { return 0; }
 
     // Get laplacian matrix.
-    igraph_matrix_t laplacian;
-    igraph_matrix_init(&laplacian, vertices(), vertices());
+    igraphMatrix laplacian(graph.vertices(), graph.vertices());
     /*int ret = */igraph_laplacian(
-        graph.get(), &laplacian,
+        graph.get(), laplacian.get(),
         nullptr,                    // don't create sparse laplacian
         false,                      // false = non-normalised
         nullptr);                   // null = unweighted
@@ -198,7 +197,7 @@ double UndirectedGraph::algebraic_connectivity_arpack_dense() const {
     // ARPACK configuration for eigenvalue calculation.
     igraph_arpack_options_t options;
     igraph_arpack_options_init(&options);
-    options.n = vertices();
+    options.n = graph.vertices();
     options.which[0]='S'; options.which[1]='A';     // calculate from the small end
     options.nev = 2;                                // get two smallest values
     options.ncv = 0;                                // 0 means "automatic" in igraph_arpack_rssolve
@@ -206,74 +205,65 @@ double UndirectedGraph::algebraic_connectivity_arpack_dense() const {
     options.mxiter = 10000;                         // iterations to convergence
 
     // Callback eigenvalue calculation.
-    igraph_vector_t values;
-    igraph_vector_init(&values, 0);
+    igraphVector values(2);
     igraph_arpack_rssolve(
-        multiplier, &laplacian,     // Callback multiplying L * x
+        multiplier, laplacian.get(),    // Callback multiplying L * x
         &options,
-        nullptr,                    // Automatic storage structures.
-        &values,                    // Eigenvalues.
-        nullptr);                   // Eigenvectors not required.
-
-    // Cleanup.
-    igraph_matrix_destroy(&laplacian);
+        nullptr,                        // Automatic storage structures.
+        values.get(),                   // Eigenvalues.
+        nullptr);                       // Eigenvectors not required.
+    values.update();
 
     // Resulting vector has size 2, so begin() + 1 points to the result.
-    auto result = IGraphVector(values);
-    Ensures(result.size() == 2);
-    return *(result.begin() + 1);
+    Ensures(values.size() == 2);
+    return *(values.begin() + 1);
 
 }
 
 
-double UndirectedGraph::wiener_index() const {
+double wiener_index(const UndirectedGraph& graph) {
     // Simple sum of inter-vertex distances over unordered vertex pairs.
-    igraph_matrix_t res;
-    igraph_matrix_init(&res, vertices(), vertices());
-    igraph_shortest_paths(graph.get(), &res, igraph_vss_all(), igraph_vss_all(), IGRAPH_ALL);
+    igraphMatrix res(graph.vertices(), graph.vertices());
+    igraph_shortest_paths(graph.get(), res.get(), igraph_vss_all(), igraph_vss_all(), IGRAPH_ALL);
 
     double result = 0;
-    for (int i = 0; i < vertices(); i++) {
-        for (int j = i + 1; j < vertices(); j++) {
-            result += MATRIX(res, i, j);
+    for (int i = 0; i < graph.vertices(); i++) {
+        for (int j = i + 1; j < graph.vertices(); j++) {
+            result += res.element(i, j);
         }
     }
 
-    igraph_matrix_destroy(&res);
     return result;
 }
 
 
-pair<double, double> UndirectedGraph::szeged_indices() const {
-    // Sum of n(u;v)n(v;u) over all edges.
+const pair<double, double> szeged_indices(const UndirectedGraph& graph) {
 
     // Edge list.
-    igraph_vector_t res;
-    igraph_vector_init(&res, edges() * 2);
-    igraph_get_edgelist(graph.get(), &res, false);
-    auto edge_list = IGraphVector(res);
+    igraphVector edge_list(graph.edges() * 2);
+    igraph_get_edgelist(graph.get(), edge_list.get(), false);
+    edge_list.update();
 
-    // Distance matrix (needs cleanup).
-    igraph_matrix_t distance;
-    igraph_matrix_init(&distance, vertices(), vertices());
-    igraph_shortest_paths(graph.get(), &distance, igraph_vss_all(), igraph_vss_all(), IGRAPH_ALL);
+    // Distance matrix.
+    igraphMatrix distance(graph.vertices(), graph.vertices());
+    igraph_shortest_paths(graph.get(), distance.get(), igraph_vss_all(), igraph_vss_all(), IGRAPH_ALL);
 
     double szeged = 0, revised_szeged = 0;
 
-    for (int e = 0; e < edges(); e++) {
+    for (int e = 0; e < graph.edges(); e++) {
 
         int u = edge_list[e * 2];
         int v = edge_list[e * 2 + 1];
         double n_uv = 0, n_vu = 0, o_uv = 0;
 
         // Compare distances from all other vertices to u and v.
-        for (int i = 0; i < vertices(); i++) {
+        for (int i = 0; i < graph.vertices(); i++) {
             if ((i == u) || (i == v)) { continue; }
 
-            if (MATRIX(distance, u, i) < MATRIX(distance, v, i)) {
+            if (distance.element(u, i) < distance.element(v, i)) {
                 // vertex i is closer to u than v
                 n_uv += 1;
-            } else if (MATRIX(distance, u, i) > MATRIX(distance, v, i)) {
+            } else if (distance.element(u, i) > distance.element(v, i)) {
                 // vertex i is closer to v than u
                 n_vu += 1;
             } else {
@@ -287,12 +277,11 @@ pair<double, double> UndirectedGraph::szeged_indices() const {
 
     }
 
-    igraph_matrix_destroy(&distance);
     return make_pair(szeged, revised_szeged);
 }
 
 
-double UndirectedGraph::average_path_length() const {
+double average_path_length(const UndirectedGraph& graph) {
     igraph_real_t res;
     /*int ret = */igraph_average_path_length(
         graph.get(), &res,
@@ -301,7 +290,7 @@ double UndirectedGraph::average_path_length() const {
     return res;
 }
 
-int UndirectedGraph::diameter() const {
+int diameter(const UndirectedGraph& graph) {
     igraph_integer_t res;
     /*int ret = */igraph_diameter(
         graph.get(), &res,
@@ -313,7 +302,7 @@ int UndirectedGraph::diameter() const {
     return res;
 }
 
-int UndirectedGraph::radius() const {
+int radius(const UndirectedGraph& graph) {
     igraph_real_t res;
     /*int ret = */igraph_radius(
         graph.get(), &res,
@@ -321,7 +310,7 @@ int UndirectedGraph::radius() const {
     return res;
 }
 
-int UndirectedGraph::girth() const {
+int girth(const UndirectedGraph& graph) {
     igraph_integer_t res;
     /*int ret = */igraph_girth(
         graph.get(), &res,
@@ -329,7 +318,7 @@ int UndirectedGraph::girth() const {
     return res;
 }
 
-double UndirectedGraph::clustering_coefficient() const {
+double clustering_coefficient(const UndirectedGraph& graph) {
     igraph_real_t res;
     /*int ret = */igraph_transitivity_undirected(
         graph.get(), &res,
@@ -337,46 +326,8 @@ double UndirectedGraph::clustering_coefficient() const {
     return res;
 }
 
-IGraphVSIterator UndirectedGraph::neighbours(int v) const {
-    igraph_vs_t vs;
-    igraph_vit_t vit;
-    igraph_vs_adj(&vs, v, IGRAPH_OUT);
-    igraph_vit_create(graph.get(), vs, &vit);
-    return IGraphVSIterator(vs, vit);
-}
 
-
-vector<IGraphVector> igraph_vector_ptr_extract(igraph_vector_ptr_t& p) {
-    vector<IGraphVector> r;
-    int n = igraph_vector_ptr_size(&p);
-    for (int i = 0; i < n; i++) {
-        igraph_vector_t* v = (igraph_vector_t*) igraph_vector_ptr_e(&p, i);
-        IGraphVector indep_set(*v);
-        r.push_back(move(indep_set));
-        igraph_free(v);
-    }
-    igraph_vector_ptr_destroy(&p);
-    return r;
-}
-
-
-vector<IGraphVector> UndirectedGraph::maximal_independent_vertex_sets() const {
-    igraph_vector_ptr_t p;
-    igraph_vector_ptr_init(&p, 0);
-    igraph_maximal_independent_vertex_sets(graph.get(), &p);
-    return igraph_vector_ptr_extract(p);
-}
-
-
-vector<IGraphVector> UndirectedGraph::maximal_cliques() const {
-    igraph_vector_ptr_t p;
-    igraph_vector_ptr_init(&p, 0);
-    igraph_maximal_cliques(graph.get(), &p, 0, 0);
-    return igraph_vector_ptr_extract(p);
-}
-
-
-UndirectedGraph graph::read_dimacs(string file_name) {
+UndirectedGraph read_dimacs(string file_name) {
 
     uint vertices = 0, edges = 0;
     vector<pair<int, int>> edge_list;
@@ -409,36 +360,39 @@ UndirectedGraph graph::read_dimacs(string file_name) {
         throw "Incorrect number of edges.";
     }
 
-    graph::UndirectedGraph g(vertices);
+    UndirectedGraph g(vertices);
     g.add_edges(edge_list);
     return g;
 
 }
 
 
-UndirectedGraph graph::random_tree(int vertices, int children) {
-    auto g = graph::impl::create_igraph_ptr();
+UndirectedGraph random_tree(int vertices, int children) {
+    auto g = impl::create_igraph_ptr();
     igraph_tree(g.get(), vertices, children, IGRAPH_TREE_UNDIRECTED);
     return UndirectedGraph(g);
 }
 
 
-UndirectedGraph graph::random_bipartite(int n1, int n2, double p) {
-    auto g = graph::impl::create_igraph_ptr();
+UndirectedGraph random_bipartite(int n1, int n2, double p) {
+    auto g = impl::create_igraph_ptr();
     igraph_bipartite_game(g.get(), nullptr, IGRAPH_ERDOS_RENYI_GNP, n1, n2, p, 0, false, IGRAPH_ALL);
     return UndirectedGraph(g);
 }
 
 
-UndirectedGraph graph::erdos_renyi_gnm(int n, int m) {
-    auto g = graph::impl::create_igraph_ptr();
+UndirectedGraph erdos_renyi_gnm(int n, int m) {
+    auto g = impl::create_igraph_ptr();
     igraph_erdos_renyi_game(g.get(), IGRAPH_ERDOS_RENYI_GNM, n, m, false, false);
     return UndirectedGraph(g);
 }
 
 
-UndirectedGraph graph::erdos_renyi_gnp(int n, double p) {
-    auto g = graph::impl::create_igraph_ptr();
+UndirectedGraph erdos_renyi_gnp(int n, double p) {
+    auto g = impl::create_igraph_ptr();
     igraph_erdos_renyi_game(g.get(), IGRAPH_ERDOS_RENYI_GNP, n, p, false, false);
     return UndirectedGraph(g);
+}
+
+
 }

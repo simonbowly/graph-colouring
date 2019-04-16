@@ -19,7 +19,7 @@ libs = -ligraph
 objects = $(addprefix obj/, $(addsuffix .o, $(modules)))
 opt_objects = $(addprefix obj/, $(addsuffix .opt.o, $(modules)))
 
-all: bin obj bin/test
+all: bin obj bin/test bin/evaluate
 
 run: test memtest bench
 
@@ -43,6 +43,10 @@ test: bin/test
 # Memory access error and leak checking
 memtest: bin/test
 	valgrind --leak-check=full bin/test
+
+# Executable to evaluate instances.
+bin/evaluate: $(opt_objects) obj/evaluate.opt.o
+	g++ -o bin/evaluate $(opt_objects) obj/evaluate.opt.o $(libs)
 
 # Object files.
 obj/%.o: %.cpp

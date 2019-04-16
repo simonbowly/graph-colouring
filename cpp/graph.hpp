@@ -76,67 +76,39 @@ namespace graph {
         void add_edge(int from, int to) { igraph_add_edge(graph.get(), from, to); }
         void add_edges(std::vector<std::pair<int, int>> edges);
 
-        void delete_vertex(int v) { igraph_delete_vertices(graph.get(), igraph_vss_1(v)); }
-        void delete_vertices(const IGraphVector& vs) {
-            igraph_delete_vertices(graph.get(), igraph_vss_vector(vs.get_ptr()));
-        }
+        // Read only pointer for feature calculations.
+        const igraph_t* get() const { return graph.get(); }
 
         // Basic properties.
         int vertices() const { return igraph_vcount(graph.get()); }
         int edges() const { return igraph_ecount(graph.get()); }
-        double density() const {
-            double v = vertices();
-            double e = edges();
-            return 2 * e / (v * (v - 1));
-        }
-
-        // Single value features.
-        double average_path_length() const;
-        int diameter() const;
-        int radius() const;
-        int girth() const;
-        double clustering_coefficient() const;
-
-        double algebraic_connectivity_arpack_dense() const;
-        double algebraic_connectivity_lapack_dense() const;
-
-        double wiener_index() const;
-        std::pair<double, double> szeged_indices() const;
-
-        bool is_connected() const {
-            igraph_bool_t res;
-            igraph_is_connected(graph.get(), &res, IGRAPH_STRONG);
-            return res;
-        }
-
-        // Degree sequence and stats.
-        IGraphVector degree() const;
-        std::pair<double, double> degree_statistics() const {
-            return simple_statistics(degree());
-        }
-
-        // Betweenness centrality and stats.
-        IGraphVector betweenness_centrality() const;
-        std::pair<double, double> betweenness_centrality_statistics() const {
-            return simple_statistics(betweenness_centrality());
-        }
-
-        // Eigenvector centrality and stats.
-        IGraphVector eigenvector_centrality() const;
-        std::pair<double, double> eigenvector_centrality_statistics() const {
-            return simple_statistics(eigenvector_centrality());
-        }
-
-        // Spectrum (eigenvalues of the adjacency matrix).
-        IGraphVector adjacency_eigenvalues() const;
-        std::tuple<double, double, double> adjacency_eigenvalue_stats() const;
-
-        // Vector properties.
-        IGraphVSIterator neighbours(int v) const;
-        std::vector<IGraphVector> maximal_independent_vertex_sets() const;
-        std::vector<IGraphVector> maximal_cliques() const;
 
     };
+
+    double density(const UndirectedGraph&);
+    bool is_connected(const UndirectedGraph&);
+
+    // Single value features.
+    double average_path_length(const UndirectedGraph&);
+    int diameter(const UndirectedGraph&);
+    int radius(const UndirectedGraph&);
+    int girth(const UndirectedGraph&);
+    double clustering_coefficient(const UndirectedGraph&);
+    double algebraic_connectivity_arpack_dense(const UndirectedGraph&);
+    double algebraic_connectivity_lapack_dense(const UndirectedGraph&);
+    double wiener_index(const UndirectedGraph&);
+
+    // Szeged, Revised Szeged index pair.
+    const std::pair<double, double> szeged_indices(const UndirectedGraph&);
+
+    // Vertex and eigenvalue properties.
+    const igraphVector degree(const UndirectedGraph&);
+    const igraphVector betweenness_centrality(const UndirectedGraph&);
+    const igraphVector eigenvector_centrality(const UndirectedGraph&);
+    const igraphVector adjacency_eigenvalues(const UndirectedGraph&);
+
+    // Energy, stdev, beta bipartitivity tuple.
+    const std::tuple<double, double, double> adjacency_eigenvalue_stats(const UndirectedGraph&);
 
     UndirectedGraph read_dimacs(std::string);
     UndirectedGraph random_tree(int vertices, int children);
