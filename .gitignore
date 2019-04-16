@@ -113,10 +113,6 @@ graphs/
 gCol.zip
 lewis/
 
-# C++ builds
-cpp/bin
-cpp/obj
-
 # Results
 lewis-evolved-results.json
 evolved-features.out

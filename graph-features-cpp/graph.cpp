@@ -1,7 +1,8 @@
 
 #include <cmath>
 #include <fstream>
-#include <gsl/gsl_assert>
+
+#include "gsl/gsl_assert"
 #include "graph.hpp"
 
 
